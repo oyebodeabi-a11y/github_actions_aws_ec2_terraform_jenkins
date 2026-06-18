@@ -1,0 +1,61 @@
+name: Infrastructure Provisioning with Gihubactions Pipeline.
+
+on:
+  push:
+    branches:
+      - main
+permissions:
+      id-token: write # for aws oidc connection
+      contents: read   # for actions/checkout
+      pull-requests: write # for GitHub bot to comment PR
+env:
+  TF_LOG: INFO
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCESS_KEY: ${{ secrets.AWSACCESSKEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWSSECRETACCESSKEY }}
+  role-session-name: GitHub-OIDC-TERRAFORM      
+
+jobs:
+  deploy:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
+    steps:
+
+    - name: Checkout terraform code
+      uses: actions/checkout@v1
+
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        
+        terraform_version: 1.5.5
+
+    - name: Terraform init
+      id: init
+      env:
+        AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+        AWS_BUCKET_KEY_NAME: ${{ secrets.AWS_BUCKET_KEY_NAME }}
+      run: |
+        rm -rf .terraform
+        terraform init 
+
+    - name: Terraform fmt
+      id: fmt
+      run: terraform fmt
+
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color 
+
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color
+
+    - name: Terraform apply
+      id: apply 
+      run: terraform apply -auto-approve
